@@ -10,6 +10,7 @@ import java.util.List;
  */
 @Data
 public class CheckinRequest {
+
     private List<Passenger> passengers;
     private FlightInfo flightInfo;
 }

@@ -1,15 +1,21 @@
 package com.chen.junxiong.util;
 
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.JSONPath;
 import com.chen.junxiong.model.FlightInfo;
 
 import com.chen.junxiong.model.CheckinRequest;
 import com.chen.junxiong.model.Passenger;
+import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.jayway.jsonpath.JsonPath;
 import com.ql.util.express.DefaultContext;
 import com.ql.util.express.ExpressRunner;
 import org.apache.commons.lang.StringUtils;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -21,8 +27,23 @@ import java.util.Set;
 public class QlExpress {
 
     public static void main(String[] args) {
-        test2();
+
+        List<String> a = Lists.newArrayList("2","3","4");
+        String join = Joiner.on(",").skipNulls().join(a);
+        System.out.println(join);
+//        test2();
+//        test3QL();
+//        execute("未知,121");
+//        System.out.println(test3());
+       /* String s = "[{\"orderNo\":\"xep200616114100165\",\"printer\":\"未知1\",\"name\":\"池嘉敏\",\"eticketNo\":\"784-1495140419\",\"xcdPrintStatus\":\"UN_PRINT\",\"class\":\"com.qunar.flightqm.xcd.dto.XcdPrinterInfoDto\"},{\"orderNo\":\"xep200616114100165\",\"printer\":\"未知\",\"name\":\"吴纲\",\"eticketNo\":\"784-1495140420\",\"xcdPrintStatus\":\"UN_PRINT\",\"class\":\"com.qunar.flightqm.xcd.dto.XcdPrinterInfoDto\"}]";
+//        execute(s);
+
+        List<String> read = (List<String>) JSONPath.read(s, "$.printer");
+        execute(read);*/
+
+//        System.out.println(read);
     }
+
 
     private static void test2(){
         ExpressRunner runner = new ExpressRunner();
@@ -43,7 +64,7 @@ public class QlExpress {
     private static void test1() {
         ExpressRunner runner = new ExpressRunner();
         DefaultContext<String, Object> context = new DefaultContext<String, Object>();
-        context.put("checkinRequest", build());
+        context.put("checkinRequest", build("cjx"));
         String express = "import com.chen.junxiong.model.CheckinRequest;" +
                 "import com.chen.junxiong.model.Passenger;" +
                 "import com.chen.junxiong.model.FlightInfo;" +
@@ -78,9 +99,9 @@ public class QlExpress {
         }
     }
 
-    private static CheckinRequest build() {
+    private static CheckinRequest build(String name) {
         Passenger passenger = new Passenger();
-        passenger.setName("cjx");
+        passenger.setName(name);
         passenger.setTicketNo("781-122223133");
         passenger.setBirthday("2020-04-01");
 
@@ -102,5 +123,90 @@ public class QlExpress {
         return request;
     }
 
+    private static JSONObject getFlightInfo(String carrier){
+
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("printer", carrier);
+        jsonObject.put("flightNO", "123231");
+        return jsonObject;
+    }
+
+    private static void test3QL(){
+        List<JSONObject> checkinRequests = Lists.newArrayList(getFlightInfo("cjx1"), getFlightInfo("cjx2"));
+        ExpressRunner runner = new ExpressRunner();
+        DefaultContext<String, Object> context = new DefaultContext<String, Object>();
+        context.put("common", checkinRequests);
+        String express = "import com.alibaba.fastjson.JSONObject;" +
+                "import com.google.common.collect.Sets;" +
+                "result = \"部分打印\";        " +
+                "set = Sets.newHashSet();        " +
+                "for (int i = 0; i < common.size(); i++) {            " +
+                "jsonObject = common.get(i);            " +
+                "printer = jsonObject.getString(\"printer\");            " +
+                "set.add(printer);        " +
+                "}        " +
+                "if (set.size() == 1) {            " +
+                "return common.get(0).getString(\"printer\");        " +
+                "}        " +
+                "return result;";
+        try {
+            Object execute = runner.execute(express, context, null, false, false);
+            System.out.println(execute);
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+    }
+
+    private static String test3() {
+        List<JSONObject> common = Lists.newArrayList(getFlightInfo("cjx2"), getFlightInfo("cjx2"));
+
+        String result = "部分打印";
+        Set<String> set = Sets.newHashSet();
+        for (int i = 0; i < common.size(); i++) {
+            JSONObject jsonObject = common.get(i);
+            String carrier = jsonObject.getString("carrier");
+            set.add(carrier);
+        }
+        if (set.size() == 1) {
+            return common.get(0).getString("carrier");
+        }
+        return result;
+    }
+
+    private static String test4(String common){
+        String result = "部分打印";
+        Set<String> set = new HashSet<String>();
+        String[] split = common.split(",");
+        for (int i = 0; i < split.length; i++) {
+            set.add(split[i]);
+        }
+        if (set.size() == 1) {
+            return split[0];
+        }
+        return result;
+    }
+
+    private static void execute(List<String> common){
+        ExpressRunner runner = new ExpressRunner();
+        DefaultContext<String, Object> context = new DefaultContext<String, Object>();
+        context.put("common", common);
+        String express = "import java.util.List;s = common.get(0);for (int i = 1; i < common.size(); i++) {if (!common.get(i).equals(s)) {return \"部分打印\";}}return s;";
+        try {
+            Object execute = runner.execute(express, context, null, false, false);
+            System.out.println(execute);
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+    }
+
+    private String  t(List<String> common){
+        String s = common.get(0);
+        for (int i = 1; i < common.size(); i++) {
+            if (!common.get(i).equals(s)) {
+                return "部分打印";
+            }
+        }
+        return s;
+    }
 
 }
